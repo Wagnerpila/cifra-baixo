@@ -52,7 +52,7 @@ button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .step b{font-family:var(--display)} .step i{font-style:normal;color:var(--mute);font-size:13px}
 .step.t b{color:var(--root)} .step.o b{color:var(--out)}
 .arrow{color:var(--mute)}
-:root{--qM:#1E7A3C;--qm:#1B63B5;--qd:#7A47B5;--d0:#B5510A;--d1:#1B63B5;--d2:#1E7A3C;--d3:#7A47B5;--d4:#0E7C86;--d5:#A0357F;--d6:#6A6A1A}
+:root{--M1:#7A6A12;--M2:#5E7D0F;--M3:#1E7A3C;--M4:#8A6200;--M5:#0F7B5B;--M6:#8A5A1E;--m1:#1B63B5;--m2:#7A47B5;--m3:#0E7C86;--m4:#3B4BA5;--m5:#A0357F;--m6:#5A6275;--dm:#4A4A4A;--qM:#1E7A3C;--qm:#1B63B5;--qd:#7A47B5;--d0:#B5510A;--d1:#1B63B5;--d2:#1E7A3C;--d3:#7A47B5;--d4:#0E7C86;--d5:#A0357F;--d6:#6A6A1A}
 .step.dc{border-left:5px solid var(--dc)} .step.dc b{color:var(--dc)}
 td.d.dc{border-left:5px solid var(--dc);font-weight:700}
 table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
@@ -89,7 +89,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
 <div class="wrap">
   <div>
     <h1>Padrões no braço do baixo</h1>
-    <div class="sub">Versão 7 · cores por grau ou por maior/menor. Baixo de 5 cordas (B E A D G). Cada verso e refrão mostra as notas fundamentais dos acordes em graus do campo harmônico.</div>
+    <div class="sub">Versão 8 · maiores e menores, cada grau com uma cor. Baixo de 5 cordas (B E A D G). Cada verso e refrão mostra as notas fundamentais dos acordes em graus do campo harmônico.</div>
   </div>
 
   <div class="bar" id="bar">
@@ -135,7 +135,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
       <button id="tCifra" aria-pressed="false">Cifra e letra</button>
       <button id="tAll" aria-pressed="false">Abrir todos</button>
       <label class="f" for="cmode">Cores
-        <select id="cmode"><option value="deg">Por grau</option><option value="qual">Maior e menor</option><option value="off">Sem cores</option></select>
+        <select id="cmode"><option value="qg">Maior e menor, cada grau uma cor</option><option value="deg">Cada grau uma cor</option><option value="qual">Só maior x menor</option><option value="off">Sem cores</option></select>
       </label>
       <label class="f" for="file" style="flex:1 1 200px">Abrir padrões gerados (.json)
         <input id="file" type="file" accept=".json,application/json">
@@ -227,7 +227,7 @@ function chordName(c,off,fl){
 const DEF_GROUP='Momentos Joam';
 let GRP=null;
 const gOf=s=>(s.group||DEF_GROUP);
-const S={cm:'deg',open:{},i:0,fmt:'near',anchor:null,target:null,keyChoice:0,num:false,scale:true,cifra:false};
+const S={cm:'qg',open:{},i:0,fmt:'near',anchor:null,target:null,keyChoice:0,num:false,scale:true,cifra:false};
 function curKey(song){
   const k=song.key;
   if(S.keyChoice===0)return {tonic:k.tonic_pc,mode:k.mode,name:k.tonic};
@@ -263,7 +263,7 @@ function fretboard(o){
   if(o.showScale){
     STR.forEach((s,i)=>{for(let f=0;f<=NF;f++){const pc=mod(s.pc+f);if(!sc.includes(pc))continue;
       const t=pc===o.tonic, nm=nn(pc,fl);
-      const di=sc.indexOf(pc), col=(S.cm==='qual'&&pc!==o.tonic)?null:colFor(di,(o.mode==='M'?QMAJ:QMIN)[di],pc===o.tonic);
+      const di=sc.indexOf(pc), col=((S.cm==='qual'||S.cm==='qg')&&pc!==o.tonic)?null:colFor(di,(o.mode==='M'?QMAJ:QMIN)[di],pc===o.tonic);
       g+=`<circle cx="${fx(f)}" cy="${sy(i)}" r="8.5" fill="${t?(col||'var(--root)'):'var(--scale-bg)'}" stroke="${t?(col||'var(--root)'):(col||'var(--scale-ln)')}" stroke-width="${col&&!t?2:1}"/>`;
       g+=`<text x="${fx(f)}" y="${sy(i)+3}" font-size="8" text-anchor="middle" font-weight="600" fill="${t?'#fff':'var(--ink)'}">${nm}</text>`;}});
   }
@@ -360,6 +360,7 @@ function colFor(deg,q,isT){
   if(S.cm==='deg')return deg>=0?`var(--d${deg})`:null;
   if(isT)return 'var(--d0)';
   if(deg<0)return null;
+  if(S.cm==='qg')return q==='M'?`var(--M${deg})`:q==='m'?`var(--m${deg})`:'var(--dm)';
   return q==='M'?'var(--qM)':q==='m'?'var(--qm)':'var(--qd)';
 }
 const dfill=d=>d.cls==='o'?'var(--out)':(colFor(d.deg,d.q,d.cls==='t')||(d.cls==='t'?'var(--root)':'var(--dia)'));
@@ -419,7 +420,7 @@ function render(){
   const fl=flatsFor(K.tonic,K.mode);
   const tonName=nn(K.tonic,fl);
   const scaleNames=spellScale(tonName,K.mode);
-  const degLeg=S.cm==='deg'?fieldDots(K,scaleNames).map((d,i)=>`<span style="--c:var(--d${i})">${esc(d.label)}</span>`).join(''):S.cm==='qual'?'<span style="--c:var(--d0)">Tônica</span><span style="--c:var(--qM)">Maior</span><span style="--c:var(--qm)">Menor</span><span style="--c:var(--qd)">Diminuto</span>':'';
+  const degLeg=S.cm==='qg'?fieldDots(K,scaleNames).map((d,i)=>`<span style="--c:${colFor(i,d.q,i===0)}">${esc(d.label)}</span>`).join(''):S.cm==='deg'?fieldDots(K,scaleNames).map((d,i)=>`<span style="--c:var(--d${i})">${esc(d.label)}</span>`).join(''):S.cm==='qual'?'<span style="--c:var(--d0)">Tônica</span><span style="--c:var(--qM)">Maior</span><span style="--c:var(--qm)">Menor</span><span style="--c:var(--qd)">Diminuto</span>':'';
   // controles
   const tom=document.getElementById('tom');
   tom.innerHTML=SH.map((n,i)=>`<option value="${i}" ${i===K.tonic?'selected':''}>${nn(i,flatsFor(i,K.mode))} ${MODE_TXT[K.mode]}</option>`).join('');
