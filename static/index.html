@@ -263,7 +263,7 @@ function fretboard(o){
   if(o.showScale){
     STR.forEach((s,i)=>{for(let f=0;f<=NF;f++){const pc=mod(s.pc+f);if(!sc.includes(pc))continue;
       const t=pc===o.tonic, nm=nn(pc,fl);
-      const di=sc.indexOf(pc), col=colFor(di,(o.mode==='M'?QMAJ:QMIN)[di],pc===o.tonic);
+      const di=sc.indexOf(pc), col=(S.cm==='qual'&&pc!==o.tonic)?null:colFor(di,(o.mode==='M'?QMAJ:QMIN)[di],pc===o.tonic);
       g+=`<circle cx="${fx(f)}" cy="${sy(i)}" r="8.5" fill="${t?(col||'var(--root)'):'var(--scale-bg)'}" stroke="${t?(col||'var(--root)'):(col||'var(--scale-ln)')}" stroke-width="${col&&!t?2:1}"/>`;
       g+=`<text x="${fx(f)}" y="${sy(i)+3}" font-size="8" text-anchor="middle" font-weight="600" fill="${t?'#fff':'var(--ink)'}">${nm}</text>`;}});
   }
