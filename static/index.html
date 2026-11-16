@@ -89,7 +89,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
 <div class="wrap">
   <div>
     <h1>Padrões no braço do baixo</h1>
-    <div class="sub">Versão 8 · maiores e menores, cada grau com uma cor. Baixo de 5 cordas (B E A D G). Cada verso e refrão mostra as notas fundamentais dos acordes em graus do campo harmônico.</div>
+    <div class="sub">Versão 9 · maiores verdes, menores azuis. Baixo de 5 cordas (B E A D G). Cada verso e refrão mostra as notas fundamentais dos acordes em graus do campo harmônico.</div>
   </div>
 
   <div class="bar" id="bar">
@@ -135,7 +135,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
       <button id="tCifra" aria-pressed="false">Cifra e letra</button>
       <button id="tAll" aria-pressed="false">Abrir todos</button>
       <label class="f" for="cmode">Cores
-        <select id="cmode"><option value="qg">Maior e menor, cada grau uma cor</option><option value="deg">Cada grau uma cor</option><option value="qual">Só maior x menor</option><option value="off">Sem cores</option></select>
+        <select id="cmode"><option value="qual">Maiores verdes, menores azuis</option><option value="deg">Cada grau uma cor</option><option value="qg">Maiores e menores, tons por grau</option><option value="off">Sem cores</option></select>
       </label>
       <label class="f" for="file" style="flex:1 1 200px">Abrir padrões gerados (.json)
         <input id="file" type="file" accept=".json,application/json">
@@ -227,7 +227,7 @@ function chordName(c,off,fl){
 const DEF_GROUP='Momentos Joam';
 let GRP=null;
 const gOf=s=>(s.group||DEF_GROUP);
-const S={cm:'qg',open:{},i:0,fmt:'near',anchor:null,target:null,keyChoice:0,num:false,scale:true,cifra:false};
+const S={cm:'qual',open:{},i:0,fmt:'near',anchor:null,target:null,keyChoice:0,num:false,scale:true,cifra:false};
 function curKey(song){
   const k=song.key;
   if(S.keyChoice===0)return {tonic:k.tonic_pc,mode:k.mode,name:k.tonic};
