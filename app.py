@@ -54,6 +54,12 @@ def auth():
     return Response('Acesso restrito', 401, {'WWW-Authenticate': 'Basic realm="Padroes no braco"'})
 
 
+@app.after_request
+def nocache(r):
+    if not request.path.startswith('/api/'): r.headers['Cache-Control'] = 'no-cache, must-revalidate'
+    return r
+
+
 @app.get('/healthz')
 def healthz(): return 'ok'
 
