@@ -52,7 +52,7 @@ button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .step b{font-family:var(--display)} .step i{font-style:normal;color:var(--mute);font-size:13px}
 .step.t b{color:var(--root)} .step.o b{color:var(--out)}
 .arrow{color:var(--mute)}
-:root{--d0:#B5510A;--d1:#1B63B5;--d2:#1E7A3C;--d3:#7A47B5;--d4:#0E7C86;--d5:#A0357F;--d6:#6A6A1A}
+:root{--qM:#1E7A3C;--qm:#1B63B5;--qd:#7A47B5;--d0:#B5510A;--d1:#1B63B5;--d2:#1E7A3C;--d3:#7A47B5;--d4:#0E7C86;--d5:#A0357F;--d6:#6A6A1A}
 .step.dc{border-left:5px solid var(--dc)} .step.dc b{color:var(--dc)}
 td.d.dc{border-left:5px solid var(--dc);font-weight:700}
 table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
@@ -89,7 +89,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
 <div class="wrap">
   <div>
     <h1>Padrões no braço do baixo</h1>
-    <div class="sub">Versão 6 · cores por grau do campo. Baixo de 5 cordas (B E A D G). Cada verso e refrão mostra as notas fundamentais dos acordes em graus do campo harmônico.</div>
+    <div class="sub">Versão 7 · cores por grau ou por maior/menor. Baixo de 5 cordas (B E A D G). Cada verso e refrão mostra as notas fundamentais dos acordes em graus do campo harmônico.</div>
   </div>
 
   <div class="bar" id="bar">
@@ -134,7 +134,9 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
       <button id="tScale" class="on" aria-pressed="true">Escala no campo</button>
       <button id="tCifra" aria-pressed="false">Cifra e letra</button>
       <button id="tAll" aria-pressed="false">Abrir todos</button>
-      <button id="tCol" class="on" aria-pressed="true">Cores dos graus</button>
+      <label class="f" for="cmode">Cores
+        <select id="cmode"><option value="deg">Por grau</option><option value="qual">Maior e menor</option><option value="off">Sem cores</option></select>
+      </label>
       <label class="f" for="file" style="flex:1 1 200px">Abrir padrões gerados (.json)
         <input id="file" type="file" accept=".json,application/json">
       </label>
@@ -225,7 +227,7 @@ function chordName(c,off,fl){
 const DEF_GROUP='Momentos Joam';
 let GRP=null;
 const gOf=s=>(s.group||DEF_GROUP);
-const S={dcol:true,open:{},i:0,fmt:'near',anchor:null,target:null,keyChoice:0,num:false,scale:true,cifra:false};
+const S={cm:'deg',open:{},i:0,fmt:'near',anchor:null,target:null,keyChoice:0,num:false,scale:true,cifra:false};
 function curKey(song){
   const k=song.key;
   if(S.keyChoice===0)return {tonic:k.tonic_pc,mode:k.mode,name:k.tonic};
@@ -261,7 +263,7 @@ function fretboard(o){
   if(o.showScale){
     STR.forEach((s,i)=>{for(let f=0;f<=NF;f++){const pc=mod(s.pc+f);if(!sc.includes(pc))continue;
       const t=pc===o.tonic, nm=nn(pc,fl);
-      const di=sc.indexOf(pc), col=S.dcol&&di>=0?`var(--d${di})`:null;
+      const di=sc.indexOf(pc), col=colFor(di,(o.mode==='M'?QMAJ:QMIN)[di],pc===o.tonic);
       g+=`<circle cx="${fx(f)}" cy="${sy(i)}" r="8.5" fill="${t?(col||'var(--root)'):'var(--scale-bg)'}" stroke="${t?(col||'var(--root)'):(col||'var(--scale-ln)')}" stroke-width="${col&&!t?2:1}"/>`;
       g+=`<text x="${fx(f)}" y="${sy(i)+3}" font-size="8" text-anchor="middle" font-weight="600" fill="${t?'#fff':'var(--ink)'}">${nm}</text>`;}});
   }
@@ -352,14 +354,22 @@ function sectionChords(sec){
   return out;
 }
 const DEGIDX=(pc,K)=>(K.mode==='M'?MAJ:MIN).indexOf(mod(pc-K.tonic));
-const dfill=d=>d.cls==='o'?'var(--out)':(S.dcol&&d.deg>=0)?`var(--d${d.deg})`:d.cls==='t'?'var(--root)':'var(--dia)';
+const QMAJ=['M','m','m','M','M','m','d'], QMIN=['m','d','M','m','m','M','M'];
+function colFor(deg,q,isT){
+  if(S.cm==='off')return null;
+  if(S.cm==='deg')return deg>=0?`var(--d${deg})`:null;
+  if(isT)return 'var(--d0)';
+  if(deg<0)return null;
+  return q==='M'?'var(--qM)':q==='m'?'var(--qm)':'var(--qd)';
+}
+const dfill=d=>d.cls==='o'?'var(--out)':(colFor(d.deg,d.q,d.cls==='t')||(d.cls==='t'?'var(--root)':'var(--dia)'));
 function dotsFor(chords,K){
   const seen=new Map();
   chords.forEach(c=>{
     if(seen.has(c.r))return;
     const dg=degLabel(c,K.tonic,K.mode), dia=isDia(c,K.tonic,K.mode);
     const isT=(c.r===K.tonic);
-    seen.set(c.r,{pc:mod(c.r+K.off),label:fmtDeg(baseDeg(dg)),cls:isT?'t':(dia?'d':'o'),step:seen.size+1,c,deg:(dia||isT)?DEGIDX(c.r,K):-1});
+    seen.set(c.r,{pc:mod(c.r+K.off),label:fmtDeg(baseDeg(dg)),cls:isT?'t':(dia?'d':'o'),step:seen.size+1,c,deg:(dia||isT)?DEGIDX(c.r,K):-1,q:c.q});
   });
   return [...seen.values()];
 }
@@ -368,8 +378,8 @@ function stepsHtml(chords,K,fl){
   chords.forEach(c=>{const dg=degLabel(c,K.tonic,K.mode);const k=dg+'|'+c.r;if(keys.has(k))return;keys.add(k);seen.push(c);});
   return seen.map((c,i)=>{
     const dg=degLabel(c,K.tonic,K.mode), dia=isDia(c,K.tonic,K.mode), isT=c.r===K.tonic;
-    const di=(S.dcol&&(dia||isT))?DEGIDX(c.r,K):-1;
-    return `<span class="step ${isT?'t':dia?'':'o'}${di>=0?' dc':''}"${di>=0?` style="--dc:var(--d${di})"`:''}><b>${esc(fmtDeg(dg))}</b><i>${esc(chordName(c,K.off,fl))}</i></span>`;
+    const cc=colFor((dia||isT)?DEGIDX(c.r,K):-1,c.q,isT);
+    return `<span class="step ${isT?'t':dia?'':'o'}${cc?' dc':''}"${cc?` style="--dc:${cc}"`:''}><b>${esc(fmtDeg(dg))}</b><i>${esc(chordName(c,K.off,fl))}</i></span>`;
   }).join('<span class="arrow">&rarr;</span>');
 }
 function linesHtml(sec,K,fl){
@@ -386,14 +396,15 @@ function fieldTable(K,fl,scaleNames){
   let rows='';
   for(let i=0;i<7;i++){
     const deg=ROM[i]+dq[i];
-    rows+=`<tr><td class="d${S.dcol?' dc':''}" style="--dc:var(--d${i})">${esc(fmtDeg(deg))}</td><td>${esc(scaleNames[i]+q[i])}</td><td>${esc(scaleNames[i]+t[i])}</td></tr>`;
+    const cc=colFor(i,(K.mode==='M'?QMAJ:QMIN)[i],i===0);
+    rows+=`<tr><td class="d${cc?' dc':''}" style="--dc:${cc||'transparent'}">${esc(fmtDeg(deg))}</td><td>${esc(scaleNames[i]+q[i])}</td><td>${esc(scaleNames[i]+t[i])}</td></tr>`;
   }
   return `<table><thead><tr><th>Grau</th><th>Tríade</th><th>Tétrade</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function fieldDots(K,scaleNames){
   const dq=K.mode==='M'?['','m','m','','','m','°']:['m','°','','m','m','',''];
   const st=K.mode==='M'?MAJ:MIN;
-  return st.map((s,i)=>({pc:mod(K.tonic+s),label:fmtDeg(ROM[i]+dq[i]),cls:i===0?'t':'d',step:0,deg:i}));
+  return st.map((s,i)=>({pc:mod(K.tonic+s),label:fmtDeg(ROM[i]+dq[i]),cls:i===0?'t':'d',step:0,deg:i,q:(K.mode==='M'?QMAJ:QMIN)[i]}));
 }
 
 function render(){
@@ -408,7 +419,7 @@ function render(){
   const fl=flatsFor(K.tonic,K.mode);
   const tonName=nn(K.tonic,fl);
   const scaleNames=spellScale(tonName,K.mode);
-  const degLeg=S.dcol?fieldDots(K,scaleNames).map((d,i)=>`<span style="--c:var(--d${i})">${esc(d.label)}</span>`).join(''):'';
+  const degLeg=S.cm==='deg'?fieldDots(K,scaleNames).map((d,i)=>`<span style="--c:var(--d${i})">${esc(d.label)}</span>`).join(''):S.cm==='qual'?'<span style="--c:var(--d0)">Tônica</span><span style="--c:var(--qM)">Maior</span><span style="--c:var(--qm)">Menor</span><span style="--c:var(--qd)">Diminuto</span>':'';
   // controles
   const tom=document.getElementById('tom');
   tom.innerHTML=SH.map((n,i)=>`<option value="${i}" ${i===K.tonic?'selected':''}>${nn(i,flatsFor(i,K.mode))} ${MODE_TXT[K.mode]}</option>`).join('');
@@ -452,7 +463,7 @@ function render(){
     <div class="sub">Escala: ${scaleNames.map(esc).join(' ')} · ${K.mode==='M'?'T T ST T T T ST':'T ST T T ST T T'}</div>
     <div class="fb">${fretboard({tonic:K.tonic,mode:K.mode,showScale:S.scale,dots:fieldDots(K,scaleNames)})}</div>
     ${ANC?`<div class="sub">Campo a partir da tônica (corda ${STR[ANC.i].n}, casa ${ANC.f})</div><div class="fb">${patternBoard({tonic:K.tonic,mode:K.mode,dots:fieldDots(K,scaleNames),anchor:ANC,fmt:S.fmt})}</div>`:''}
-    <div class="legend">${S.dcol?degLeg:'<span style="--c:var(--root)">Tônica</span><span style="--c:var(--dia)">Graus do campo</span>'}<span style="--c:var(--scale-ln)">Notas da escala</span></div>
+    <div class="legend">${S.cm!=='off'?degLeg:'<span style="--c:var(--root)">Tônica</span><span style="--c:var(--dia)">Graus do campo</span>'}<span style="--c:var(--scale-ln)">Notas da escala</span></div>
     ${fieldTable(K,fl,scaleNames)}
     ${K.mode==='m'?'<div class="note">Menor natural. Na menor harmônica o V vira maior (V7) e o VII vira diminuto.</div>':''}</div>`;
 
@@ -466,7 +477,7 @@ function render(){
       <div class="fb">${patternBoard({tonic:K.tonic,mode:K.mode,dots:dd,anchor:ANC,fmt:S.fmt})}</div>
       <div class="more"><div class="tagrow">${g.sec.src&&g.sec.src!=='marcado'?`<span class="tag">inferido: ${esc(g.sec.src)}</span>`:`<span class="tag">marcado na cifra</span>`}</div>
       <div class="steps">${stepsHtml(g.ch,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</div>
-      <div class="legend">${S.dcol?degLeg:'<span style="--c:var(--root)">Tônica</span><span style="--c:var(--dia)">Dentro do campo</span>'}<span style="--c:var(--out)">Fora do campo</span><span>Número e linha = ordem dos acordes</span></div>
+      <div class="legend">${S.cm!=='off'?degLeg:'<span style="--c:var(--root)">Tônica</span><span style="--c:var(--dia)">Dentro do campo</span>'}<span style="--c:var(--out)">Fora do campo</span><span>Número e linha = ordem dos acordes</span></div>
       ${S.cifra?`<details open><summary>Cifra e letra</summary>${linesHtml(g.sec,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</details>`:`<details><summary>Cifra e letra</summary>${linesHtml(g.sec,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</details>`}
     </div></div>`;
   });
@@ -520,7 +531,7 @@ document.getElementById('tScale').onclick=e=>{S.scale=!S.scale;e.target.classLis
 document.getElementById('tAll').onclick=e=>{const b=e.currentTarget,on=b.getAttribute('aria-pressed')!=='true';
   b.setAttribute('aria-pressed',on);b.classList.toggle('on',on);b.textContent=on?'Fechar todos':'Abrir todos';
   document.querySelectorAll('.sec').forEach(c=>{c.classList.toggle('open',on);S.open[c.dataset.k]=on;c.querySelector('.sh').setAttribute('aria-expanded',on);});};
-document.getElementById('tCol').onclick=e=>{S.dcol=!S.dcol;e.currentTarget.classList.toggle('on',S.dcol);e.currentTarget.setAttribute('aria-pressed',S.dcol);render();};
+document.getElementById('cmode').onchange=e=>{S.cm=e.target.value;render();};
 document.getElementById('tCifra').onclick=e=>{S.cifra=!S.cifra;e.target.classList.toggle('on',S.cifra);e.target.setAttribute('aria-pressed',S.cifra);render();};
 document.getElementById('file').onchange=e=>{
   const f=e.target.files[0]; if(!f)return;
