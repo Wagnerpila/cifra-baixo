@@ -15,6 +15,7 @@ STORE = os.path.join(DATA, 'songs.json')
 USER = os.environ.get('CIFRA_USER', 'baixo')
 PASS = os.environ.get('CIFRA_PASS', '')
 LOCK = threading.Lock()
+DEF_GROUP = 'Momentos Joam'
 ALLOWED_EXT = {'.docx', '.pdf', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.heic', '.txt'}
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
@@ -29,7 +30,14 @@ def load():
         for s in seed: s['id'] = uuid.uuid4().hex[:10]
         save(seed)
         return seed
-    return json.load(open(STORE, encoding='utf-8'))
+    songs = json.load(open(STORE, encoding='utf-8'))
+    for s in songs: s.setdefault('group', DEF_GROUP)
+    return songs
+
+
+def clean_group(g):
+    g = re.sub(r'\s+', ' ', (g or '')).strip()[:60]
+    return g or DEF_GROUP
 
 
 def save(songs):
@@ -96,7 +104,8 @@ def analisar():
     if not found and errors: return jsonify({'added': [], 'errors': errors}), 422
     with LOCK:
         songs = load()
-        for s in found: s['id'] = uuid.uuid4().hex[:10]
+        grupo = clean_group(request.form.get('grupo'))
+        for s in found: s['id'] = uuid.uuid4().hex[:10]; s['group'] = grupo
         songs.extend(found); save(songs)
     return jsonify({'added': [s['id'] for s in found], 'errors': errors})
 
@@ -108,4 +117,15 @@ def remover():
         songs = load(); new = [s for s in songs if s.get('id') != sid]
         if len(new) == len(songs): return jsonify({'ok': False}), 404
         save(new)
+    return jsonify({'ok': True})
+
+
+@app.post('/api/mover')
+def mover():
+    j = request.get_json(silent=True) or {}
+    sid, g = j.get('id'), clean_group(j.get('group'))
+    with LOCK:
+        songs = load(); hit = [s for s in songs if s.get('id') == sid]
+        if not hit: return jsonify({'ok': False}), 404
+        hit[0]['group'] = g; save(songs)
     return jsonify({'ok': True})

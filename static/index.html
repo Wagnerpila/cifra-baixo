@@ -81,6 +81,9 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
   </div>
 
   <div class="bar" id="bar">
+    <label class="f" for="grp">Grupo
+      <select id="grp"></select>
+    </label>
     <label class="f" for="song">Música
       <select id="song"></select>
     </label>
@@ -117,6 +120,10 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
   <details class="card" id="addp" style="display:none">
     <summary style="font:700 16px var(--display);color:var(--ink)">Adicionar cifra</summary>
     <div class="row" style="flex-direction:column;align-items:stretch;gap:10px;margin-top:8px">
+      <label class="f" for="grupo">Grupo (ex.: Momentos Joam, Missa)
+        <input id="grupo" list="grupos" placeholder="Nome do grupo" maxlength="60" style="font:inherit;padding:8px 10px;min-height:40px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)">
+        <datalist id="grupos"></datalist>
+      </label>
       <label class="f" for="arq">PDF, Word, foto/print ou .txt
         <input id="arq" type="file" multiple accept=".pdf,.docx,.txt,image/*">
       </label>
@@ -190,6 +197,9 @@ function chordName(c,off,fl){
 }
 
 /* ---------------- estado ---------------- */
+const DEF_GROUP='Momentos Joam';
+let GRP=null;
+const gOf=s=>(s.group||DEF_GROUP);
 const S={i:0,target:null,keyChoice:0,num:false,scale:true,cifra:false};
 function curKey(song){
   const k=song.key;
@@ -367,7 +377,7 @@ function render(){
     const a=k.alts[0];
     h+=`<div class="warn">Tom pouco conclusivo. Também pode ser ${esc(a.tonic)}${a.mode==='m'?'m':''}. <button id="altKey" style="min-height:32px;padding:3px 10px">${S.keyChoice?'Voltar ao tom detectado':'Usar essa alternativa'}</button></div>`;
   }
-  if(SERVER&&song.id)h+=`<div><button id="rm" style="min-height:32px;padding:3px 10px">Remover esta música</button></div>`;
+  if(SERVER&&song.id)h+=`<div class="row" style="gap:8px;align-items:flex-end"><label class="f" for="mvg" style="flex:1 1 160px">Grupo desta música<input id="mvg" list="grupos" maxlength="60" value="${esc(gOf(song))}" style="font:inherit;padding:6px 10px;min-height:36px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)"></label><button id="mv" style="min-height:36px;padding:3px 10px">Mover</button><button id="rm" style="min-height:36px;padding:3px 10px">Remover esta música</button></div>`;
   h+=`<div class="chips">`+song.sections.map((s,i)=>`<span class="chip">${esc(s.name)}</span>`).join('<span class="arrow">&rarr;</span>')+`</div></div>`;
 
   // campo harmônico
@@ -398,19 +408,33 @@ function render(){
   const rm=document.getElementById('rm');
   if(rm)rm.onclick=()=>{if(rm.dataset.sure!=='1'){rm.dataset.sure='1';rm.textContent='Confirmar remoção';return;}
     fetch('api/remover',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id})}).then(()=>reloadSongs(null));};
+  const mv=document.getElementById('mv');
+  if(mv)mv.onclick=()=>{const g=(document.getElementById('mvg').value||'').trim();if(!g)return;
+    fetch('api/mover',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id,group:g})}).then(()=>reloadSongs(song.id));};
   const a=document.getElementById('altKey');
   if(a)a.onclick=()=>{S.keyChoice=S.keyChoice?0:1;S.target=null;render();};
 }
 
 /* ---------------- controles ---------------- */
+function groupNames(){const g=[];SONGS.forEach(s=>{const n=gOf(s);if(!g.includes(n))g.push(n);});return g;}
+function vis(){return SONGS.map((s,i)=>i).filter(i=>gOf(SONGS[i])===GRP);}
 function fillSongs(){
+  if(SONGS[S.i])GRP=gOf(SONGS[S.i]);
+  const names=groupNames();
+  document.getElementById('grp').innerHTML=names.map(n=>`<option value="${esc(n)}">${esc(n)} (${SONGS.filter(s=>gOf(s)===n).length})</option>`).join('');
+  document.getElementById('grp').value=GRP||'';
+  const dl=document.getElementById('grupos'); if(dl)dl.innerHTML=names.map(n=>`<option value="${esc(n)}">`).join('');
+  const gi=document.getElementById('grupo'); if(gi&&!gi.value)gi.value=GRP||DEF_GROUP;
   const sel=document.getElementById('song');
-  sel.innerHTML=SONGS.map((s,i)=>`<option value="${i}">${esc(s.title)}${s.artist?' — '+esc(s.artist):''}</option>`).join('');
+  sel.innerHTML=vis().map(i=>{const s=SONGS[i];return `<option value="${i}">${esc(s.title)}${s.artist?' — '+esc(s.artist):''}</option>`;}).join('');
+  sel.value=String(S.i);
 }
-function go(i){S.i=(i+SONGS.length)%SONGS.length;S.target=null;S.keyChoice=0;render();window.scrollTo({top:0});}
+function go(i){S.i=i;S.target=null;S.keyChoice=0;render();window.scrollTo({top:0});}
+function step(d){const v=vis();if(!v.length)return;const p=Math.max(0,v.indexOf(S.i));go(v[(p+d+v.length)%v.length]);}
 document.getElementById('song').onchange=e=>go(+e.target.value);
-document.getElementById('prev').onclick=()=>go(S.i-1);
-document.getElementById('next').onclick=()=>go(S.i+1);
+document.getElementById('grp').onchange=e=>{GRP=e.target.value;const v=vis();S.i=v[0]||0;S.target=null;S.keyChoice=0;fillSongs();render();window.scrollTo({top:0});};
+document.getElementById('prev').onclick=()=>step(-1);
+document.getElementById('next').onclick=()=>step(1);
 document.getElementById('tDown').onclick=()=>{S.target=mod((S.target===null?0:S.target)-1);render();};
 document.getElementById('tUp').onclick=()=>{S.target=mod((S.target===null?0:S.target)+1);render();};
 document.getElementById('tReset').onclick=()=>{S.target=null;render();};
@@ -424,20 +448,22 @@ document.getElementById('file').onchange=e=>{
   const f=e.target.files[0]; if(!f)return;
   const r=new FileReader();
   r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d)||!d.length||!d[0].sections)throw 0;
-    SONGS=d;fillSongs();S.i=0;S.target=null;S.keyChoice=0;render();}catch(_){alert&&0;document.getElementById('out').insertAdjacentHTML('afterbegin','<div class="warn">Arquivo inválido. Use o .json gerado pela ferramenta cifra_padrao.py.</div>');}};
+    SONGS=d;S.i=0;S.target=null;S.keyChoice=0;fillSongs();render();}catch(_){alert&&0;document.getElementById('out').insertAdjacentHTML('afterbegin','<div class="warn">Arquivo inválido. Use o .json gerado pela ferramenta cifra_padrao.py.</div>');}};
   r.readAsText(f);
 };
 
 function reloadSongs(selId){
-  return fetch('api/songs').then(r=>r.json()).then(d=>{SONGS=d;fillSongs();
-    const i=selId?SONGS.findIndex(s=>s.id===selId):0; S.i=i<0?0:i;S.target=null;S.keyChoice=0;render();});
+  return fetch('api/songs').then(r=>r.json()).then(d=>{SONGS=d;
+    let i=selId?SONGS.findIndex(s=>s.id===selId):-1;
+    if(i<0){const v=vis();i=v.length?v[0]:0;}
+    S.i=i;S.target=null;S.keyChoice=0;fillSongs();render();});
 }
 if(SERVER){
   document.getElementById('addp').style.display='';
   document.getElementById('enviar').onclick=async()=>{
     const st=document.getElementById('stat'), fd=new FormData();
     for(const f of document.getElementById('arq').files)fd.append('arquivos',f);
-    fd.append('url',document.getElementById('url').value);fd.append('texto',document.getElementById('txt').value);
+    fd.append('grupo',document.getElementById('grupo').value);fd.append('url',document.getElementById('url').value);fd.append('texto',document.getElementById('txt').value);
     st.textContent='Analisando… fotos podem levar alguns segundos.';
     try{
       const r=await fetch('api/analisar',{method:'POST',body:fd}), j=await r.json();
