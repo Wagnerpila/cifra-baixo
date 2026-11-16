@@ -100,6 +100,9 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
           <button id="tDown" aria-label="Descer um semitom">&minus;1</button><button id="tUp" aria-label="Subir um semitom">+1</button>
         </div>
       </div>
+      <label class="f" for="anc">Posição da tônica no braço
+        <select id="anc"></select>
+      </label>
       <button id="tReset" style="align-self:flex-end">Tom original</button>
       <div class="f">Graus
         <div class="seg2" role="group" aria-label="Notação dos graus">
@@ -200,7 +203,7 @@ function chordName(c,off,fl){
 const DEF_GROUP='Momentos Joam';
 let GRP=null;
 const gOf=s=>(s.group||DEF_GROUP);
-const S={i:0,target:null,keyChoice:0,num:false,scale:true,cifra:false};
+const S={i:0,anchor:null,target:null,keyChoice:0,num:false,scale:true,cifra:false};
 function curKey(song){
   const k=song.key;
   if(S.keyChoice===0)return {tonic:k.tonic_pc,mode:k.mode,name:k.tonic};
@@ -251,10 +254,20 @@ function fretboard(o){
 
 /* ---------------- desenho simplificado do padrão (meio do braço, sem corda solta) ---------------- */
 const PEN2={G:2.5,D:0.6,A:0,E:0,B:1.5};
+function anchorPlace(dots,A,tonicPc){
+  return dots.map(d=>{
+    if(d.pc===tonicPc)return {i:A.i,f:A.f};
+    let b=null;
+    STR.forEach((s,i)=>{for(let f=1;f<=17;f++){if(mod(s.pc+f)!==d.pc)continue;
+      const c=Math.abs(f-A.f)+0.8*Math.abs(i-A.i); if(!b||c<b.c)b={i,f,c};}});
+    return b||{i:A.i,f:A.f};
+  });
+}
 function patternBoard(o){
   const dots=o.dots||[]; if(!dots.length)return '';
   let best=null;
-  for(let w=3;w<=9;w++){                       // janela de 6 casas: w..w+5
+  if(o.anchor)best={pos:anchorPlace(dots,o.anchor,o.tonic),cost:0};
+  else for(let w=3;w<=9;w++){                       // janela de 6 casas: w..w+5
     let cost=Math.abs(w-5)*0.8, pos=[], ok=true;
     for(const d of dots){
       let b=null;
@@ -265,7 +278,8 @@ function patternBoard(o){
     if(ok&&(!best||cost<best.cost))best={cost,pos,w};
   }
   if(!best)return '';
-  const fmin=Math.min(...best.pos.map(p=>p.f)), fmax=Math.max(...best.pos.map(p=>p.f));
+  const allf=best.pos.map(p=>p.f).concat(o.anchor?[o.anchor.f]:[]);
+  const fmin=Math.min(...allf), fmax=Math.max(...allf);
   let a=Math.max(1,fmin-1), z=Math.max(fmax+1,a+4); const n=z-a+1;
   const FW2=52, L=44, T=26, SP2=30, W=L+n*FW2+14, H=T+4*SP2+40;
   const cx=(f)=>L+(f-a+0.5)*FW2, cy=(i)=>T+i*SP2;
@@ -275,6 +289,7 @@ function patternBoard(o){
   STR.forEach((s,i)=>{g+=`<line x1="${L}" y1="${cy(i)}" x2="${L+n*FW2}" y2="${cy(i)}" stroke="var(--string)" stroke-width="${1+i*0.4}"/><text x="14" y="${cy(i)+4}" font-size="12" fill="var(--mute)" font-family="var(--mono)">${s.n}</text>`;});
   for(let f=a;f<=z;f++)g+=`<text x="${cx(f)}" y="${T+4*SP2+34}" font-size="11" text-anchor="middle" fill="var(--mute)" font-family="var(--mono)">${f}</text>`;
   const pts=best.pos.map(p=>[cx(p.f),cy(p.i)]);
+  if(o.anchor&&!dots.some(d=>d.pc===o.tonic))g+=`<circle cx="${cx(o.anchor.f)}" cy="${cy(o.anchor.i)}" r="15" fill="none" stroke="var(--root)" stroke-width="2" stroke-dasharray="3 3"/>`;
   const order=dots.map((d,k)=>({k,s:d.step||k+1})).sort((x,y)=>x.s-y.s).map(x=>pts[x.k]);
   if(order.length>1)g+=`<polyline points="${order.map(p=>p.join(',')).join(' ')}" fill="none" stroke="var(--mute)" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round" opacity=".7"/>`;
   dots.forEach((d,k)=>{const [x,y]=pts[k];
@@ -356,6 +371,14 @@ function render(){
   const tom=document.getElementById('tom');
   tom.innerHTML=SH.map((n,i)=>`<option value="${i}" ${i===K.tonic?'selected':''}>${nn(i,flatsFor(i,K.mode))} ${MODE_TXT[K.mode]}</option>`).join('');
   document.getElementById('song').value=String(S.i);
+  let ANC=null;
+  if(S.anchor){let b=null;const ai=S.anchor.i;
+    for(let f=1;f<=15;f++){if(mod(STR[ai].pc+f)===K.tonic){const c=Math.abs(f-S.anchor.f);if(!b||c<b.c)b={i:ai,f,c};}}
+    if(b){S.anchor={i:b.i,f:b.f};ANC=S.anchor;}else S.anchor=null;}
+  const anc=document.getElementById('anc');
+  let ao='<option value="">Automática (meio do braço)</option>';
+  STR.forEach((st,i)=>{for(let f=1;f<=15;f++){if(mod(st.pc+f)===K.tonic)ao+=`<option value="${i}:${f}">${nn(K.tonic,fl)} na corda ${st.n}, casa ${f}</option>`;}});
+  anc.innerHTML=ao; anc.value=ANC?ANC.i+':'+ANC.f:'';
   const o=document.getElementById('out');
   const used=song.sections.filter(s=>sectionChords(s).length);
   // junta seções com mesmo padrão
@@ -384,6 +407,7 @@ function render(){
   h+=`<div class="card"><h2>Campo harmônico de ${esc(tonName)} ${MODE_TXT[K.mode]}</h2>
     <div class="sub">Escala: ${scaleNames.map(esc).join(' ')} · ${K.mode==='M'?'T T ST T T T ST':'T ST T T ST T T'}</div>
     <div class="fb">${fretboard({tonic:K.tonic,mode:K.mode,showScale:S.scale,dots:fieldDots(K,scaleNames)})}</div>
+    ${ANC?`<div class="sub">Campo a partir da posição escolhida (tônica na corda ${STR[ANC.i].n}, casa ${ANC.f})</div><div class="fb">${patternBoard({tonic:K.tonic,mode:K.mode,dots:fieldDots(K,scaleNames),anchor:ANC})}</div>`:''}
     <div class="legend"><span style="--c:var(--root)">Tônica</span><span style="--c:var(--dia)">Graus do campo</span><span style="--c:var(--scale-ln)">Notas da escala</span></div>
     ${fieldTable(K,fl,scaleNames)}
     ${K.mode==='m'?'<div class="note">Menor natural. Na menor harmônica o V vira maior (V7) e o VII vira diminuto.</div>':''}</div>`;
@@ -397,7 +421,7 @@ function render(){
       <div class="head"><h2>${esc(g.kind==='Verso'||g.kind==='Refrão'||g.kind==='Pré-refrão'?g.names.join(' · ').replace(/^(\D+?) (\d)/,'$1 $2'):g.names.join(' · '))}</h2>
       ${g.sec.src&&g.sec.src!=='marcado'?`<span class="tag">inferido: ${esc(g.sec.src)}</span>`:`<span class="tag">marcado na cifra</span>`}</div>
       <div class="steps">${stepsHtml(g.ch,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</div>
-      <div class="fb">${patternBoard({tonic:K.tonic,mode:K.mode,dots:dd})}</div>
+      <div class="fb">${patternBoard({tonic:K.tonic,mode:K.mode,dots:dd,anchor:ANC})}</div>
       <div class="legend"><span style="--c:var(--root)">Tônica</span><span style="--c:var(--dia)">Dentro do campo</span><span style="--c:var(--out)">Fora do campo</span><span>Número e linha = ordem dos acordes</span></div>
       ${S.cifra?`<details open><summary>Cifra e letra</summary>${linesHtml(g.sec,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</details>`:`<details><summary>Cifra e letra</summary>${linesHtml(g.sec,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</details>`}
     </div>`;
@@ -438,6 +462,7 @@ document.getElementById('next').onclick=()=>step(1);
 document.getElementById('tDown').onclick=()=>{S.target=mod((S.target===null?0:S.target)-1);render();};
 document.getElementById('tUp').onclick=()=>{S.target=mod((S.target===null?0:S.target)+1);render();};
 document.getElementById('tReset').onclick=()=>{S.target=null;render();};
+document.getElementById('anc').onchange=e=>{const v=e.target.value;S.anchor=v?{i:+v.split(':')[0],f:+v.split(':')[1]}:null;render();};
 document.getElementById('tom').onchange=e=>{S.target=+e.target.value;render();};
 const setNum=(v)=>{S.num=v;document.getElementById('gRom').classList.toggle('on',!v);document.getElementById('gNum').classList.toggle('on',v);render();};
 document.getElementById('gRom').onclick=()=>setNum(false);
