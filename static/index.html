@@ -70,14 +70,23 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
 .ly{color:var(--mute)}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
 .legend span:before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px;background:var(--c)}
-@media print{.bar{display:none}body{background:#fff}.card{break-inside:avoid}}
+.sec .sh{cursor:pointer;align-items:center;justify-content:space-between}
+.sec .chev{color:var(--mute);transition:transform .15s}
+.sec:not(.open) .chev{transform:rotate(-90deg)}
+.sec:not(.open) .more{display:none}
+.sec .fb{cursor:pointer}
+.sec:not(.open){padding:8px 12px;gap:2px}
+.sec:not(.open) .sh h2{font-size:16px}
+.sec:not(.open) .fb svg{max-height:112px;width:100%}
+.tagrow{display:flex}
+@media print{.sec .more{display:block!important}.bar{display:none}body{background:#fff}.card{break-inside:avoid}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div>
     <h1>Padrões no braço do baixo</h1>
-    <div class="sub">Versão 4 · grupos, posição da tônica e formato do desenho. Baixo de 5 cordas (B E A D G). Cada verso e refrão mostra as notas fundamentais dos acordes em graus do campo harmônico.</div>
+    <div class="sub">Versão 5 · cards recolhidos, toque para abrir. Baixo de 5 cordas (B E A D G). Cada verso e refrão mostra as notas fundamentais dos acordes em graus do campo harmônico.</div>
   </div>
 
   <div class="bar" id="bar">
@@ -121,6 +130,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--accent);padding:4px 0}
     <div class="row">
       <button id="tScale" class="on" aria-pressed="true">Escala no campo</button>
       <button id="tCifra" aria-pressed="false">Cifra e letra</button>
+      <button id="tAll" aria-pressed="false">Abrir todos</button>
       <label class="f" for="file" style="flex:1 1 200px">Abrir padrões gerados (.json)
         <input id="file" type="file" accept=".json,application/json">
       </label>
@@ -211,7 +221,7 @@ function chordName(c,off,fl){
 const DEF_GROUP='Momentos Joam';
 let GRP=null;
 const gOf=s=>(s.group||DEF_GROUP);
-const S={i:0,fmt:'near',anchor:null,target:null,keyChoice:0,num:false,scale:true,cifra:false};
+const S={open:{},i:0,fmt:'near',anchor:null,target:null,keyChoice:0,num:false,scale:true,cifra:false};
 function curKey(song){
   const k=song.key;
   if(S.keyChoice===0)return {tonic:k.tonic_pc,mode:k.mode,name:k.tonic};
@@ -442,18 +452,22 @@ function render(){
     const dots=dotsFor(g.ch,{...K,tonic:kc.tonic+0,mode:kc.mode,off:K.off}).map(d=>d);
     // dots usam tônica original para grau; posição usa tom escolhido
     const dd=dotsFor(g.ch,{tonic:kc.tonic,mode:kc.mode,off:K.off});
-    h+=`<div class="card" id="sec-${esc(g.names[0]).replace(/\s/g,'-')}">
-      <div class="head"><h2>${esc(g.kind==='Verso'||g.kind==='Refrão'||g.kind==='Pré-refrão'?g.names.join(' · ').replace(/^(\D+?) (\d)/,'$1 $2'):g.names.join(' · '))}</h2>
-      ${g.sec.src&&g.sec.src!=='marcado'?`<span class="tag">inferido: ${esc(g.sec.src)}</span>`:`<span class="tag">marcado na cifra</span>`}</div>
-      <div class="steps">${stepsHtml(g.ch,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</div>
+    h+=`<div class="card sec${S.open[S.i+'|'+g.names[0]]?' open':''}" id="sec-${esc(g.names[0]).replace(/\s/g,'-')}" data-k="${esc(S.i+'|'+g.names[0])}">
+      <div class="head sh" role="button" tabindex="0" aria-expanded="${S.open[S.i+'|'+g.names[0]]?'true':'false'}"><h2>${esc(g.kind==='Verso'||g.kind==='Refrão'||g.kind==='Pré-refrão'?g.names.join(' · ').replace(/^(\D+?) (\d)/,'$1 $2'):g.names.join(' · '))}</h2><span class="chev" aria-hidden="true">&#9662;</span></div>
       <div class="fb">${patternBoard({tonic:K.tonic,mode:K.mode,dots:dd,anchor:ANC,fmt:S.fmt})}</div>
+      <div class="more"><div class="tagrow">${g.sec.src&&g.sec.src!=='marcado'?`<span class="tag">inferido: ${esc(g.sec.src)}</span>`:`<span class="tag">marcado na cifra</span>`}</div>
+      <div class="steps">${stepsHtml(g.ch,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</div>
       <div class="legend"><span style="--c:var(--root)">Tônica</span><span style="--c:var(--dia)">Dentro do campo</span><span style="--c:var(--out)">Fora do campo</span><span>Número e linha = ordem dos acordes</span></div>
       ${S.cifra?`<details open><summary>Cifra e letra</summary>${linesHtml(g.sec,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</details>`:`<details><summary>Cifra e letra</summary>${linesHtml(g.sec,{tonic:kc.tonic,mode:kc.mode,off:K.off},fl)}</details>`}
-    </div>`;
+    </div></div>`;
   });
   const nochord=song.sections.filter(s=>!sectionChords(s).length);
   if(nochord.length)h+=`<div class="card"><div class="note">Trechos sem acordes na cifra original: ${nochord.map(s=>esc(s.name)).join(', ')}.</div></div>`;
   o.innerHTML=h;
+  o.querySelectorAll('.sec').forEach(c=>{const k=c.dataset.k,sh=c.querySelector('.sh');
+    const tg=()=>{const on=!c.classList.contains('open');c.classList.toggle('open',on);S.open[k]=on;sh.setAttribute('aria-expanded',on);};
+    sh.onclick=tg;sh.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tg();}};
+    c.querySelector('.fb').onclick=tg;});
   const rm=document.getElementById('rm');
   if(rm)rm.onclick=()=>{if(rm.dataset.sure!=='1'){rm.dataset.sure='1';rm.textContent='Confirmar remoção';return;}
     fetch('api/remover',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:song.id})}).then(()=>reloadSongs(null));};
@@ -494,6 +508,9 @@ const setNum=(v)=>{S.num=v;document.getElementById('gRom').classList.toggle('on'
 document.getElementById('gRom').onclick=()=>setNum(false);
 document.getElementById('gNum').onclick=()=>setNum(true);
 document.getElementById('tScale').onclick=e=>{S.scale=!S.scale;e.target.classList.toggle('on',S.scale);e.target.setAttribute('aria-pressed',S.scale);render();};
+document.getElementById('tAll').onclick=e=>{const b=e.currentTarget,on=b.getAttribute('aria-pressed')!=='true';
+  b.setAttribute('aria-pressed',on);b.classList.toggle('on',on);b.textContent=on?'Fechar todos':'Abrir todos';
+  document.querySelectorAll('.sec').forEach(c=>{c.classList.toggle('open',on);S.open[c.dataset.k]=on;c.querySelector('.sh').setAttribute('aria-expanded',on);});};
 document.getElementById('tCifra').onclick=e=>{S.cifra=!S.cifra;e.target.classList.toggle('on',S.cifra);e.target.setAttribute('aria-pressed',S.cifra);render();};
 document.getElementById('file').onchange=e=>{
   const f=e.target.files[0]; if(!f)return;
