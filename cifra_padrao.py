@@ -611,7 +611,18 @@ def clean_ocr_line(l):
 
 def read_url(url):
     import requests, html as H
-    r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=30)
+    from urllib.parse import urlsplit, urlunsplit
+    sp = urlsplit(url.strip())
+    path = re.sub(r'/(principal|simplificada|cifra)\.html$', '/', sp.path)
+    if not path.endswith('/') and not path.endswith('.html'): path += '/'
+    url = urlunsplit((sp.scheme, sp.netloc, path, '', ''))
+    hdr = {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+           'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.5', 'Referer': 'https://www.cifraclub.com.br/'}
+    ses = requests.Session()
+    r = ses.get(url, headers=hdr, timeout=30)
+    if r.status_code in (403, 429, 503):
+        raise RuntimeError('O Cifra Club bloqueou o acesso do servidor. Abra a cifra no navegador, copie o texto e cole no campo "Ou cole a cifra".')
     r.raise_for_status()
     h = r.text
     title = re.search(r"<h1[^>]*>(.*?)</h1>", h, re.S)

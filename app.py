@@ -95,7 +95,7 @@ def analisar():
             if not host_ok(url): errors.append('Link: só aceito links do Cifra Club')
             else:
                 try: found += cp.analyze_songs(cp.load_inputs([url]))
-                except Exception as e: errors.append(f'Link: {type(e).__name__}: {str(e)[:120]}')
+                except Exception as e: errors.append(f'Link: {type(e).__name__}: {str(e)[:220]}')
         text = (request.form.get('texto') or '').strip()
         if text:
             try: found += cp.analyze_songs(cp.songs_from_text(text, request.form.get('titulo') or 'Música colada'))
